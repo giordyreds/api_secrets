@@ -62,8 +62,8 @@ func Decrypt(key string, cipherHex string) (string, error) {
 func newCipherBlock(key string) (cipher.Block, error) {
 	hasher := md5.New()
 	fmt.Fprint(hasher, key)
-	cipher_key := hasher.Sum(nil)
-	block, err := aes.NewCipher(cipher_key)
+	cipherKey := hasher.Sum(nil)
+	block, err := aes.NewCipher(cipherKey)
 
 	if err != nil {
 		return nil, err
