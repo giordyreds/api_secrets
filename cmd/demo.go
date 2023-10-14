@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	v := apisecrets.Memory("my-fake-key")
+	v := apisecrets.File("my-fake-key", ".secretJSON")
 
 	err := v.Set("demo-key", "demo-value")
 	if err != nil {
