@@ -3,29 +3,27 @@ package apisecrets
 import (
 	"encoding/json"
 	"errors"
-	"example/apisecrets/encrypt"
-	"fmt"
+	"example/apisecrets/cipher"
 	"io"
 	"os"
-	"strings"
 	"sync"
 )
 
 type Vault struct {
 	encodingKey string
-	filepath string
-	mutex sync.Mutex
-	keyValues map[string]string
+	filepath    string
+	mutex       sync.Mutex
+	keyValues   map[string]string
 }
 
-func File(encodingKey string, filepath string) (*Vault) {
+func File(encodingKey string, filepath string) *Vault {
 	return &Vault{
 		encodingKey: encodingKey,
-		filepath: filepath,
+		filepath:    filepath,
 	}
 }
 
-func (v *Vault) loadKeyValues() error {
+func (v *Vault) load() error {
 	file, err := os.Open(v.filepath)
 	// if we do not have a file initialize the map
 	if err != nil {
@@ -33,66 +31,57 @@ func (v *Vault) loadKeyValues() error {
 		return nil
 	}
 
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			return
+		}
+	}(file)
 
-	var sb strings.Builder
-	_, err = io.Copy(&sb, file)
+	r, err := cipher.DecryptReader(v.encodingKey, file)
 	if err != nil {
 		return err
 	}
 
-	decryptedJSON, err := encrypt.Decrypt(v.encodingKey, sb.String())
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(decryptedJSON)
-	
-	r := strings.NewReader(decryptedJSON)
-
-	dec := json.NewDecoder(r)
-	err = dec.Decode(&v.keyValues)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return v.readKeyValues(r)
 }
 
-func (v *Vault) saveKeyValues() error {
-	var sb strings.Builder
-	enc := json.NewEncoder(&sb)
+func (v *Vault) readKeyValues(r io.Reader) error {
+	dec := json.NewDecoder(r)
+	return dec.Decode(&v.keyValues)
+}
 
-	err := enc.Encode(v.keyValues)
+func (v *Vault) save() error {
+	file, err := os.OpenFile(v.filepath, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return err
 	}
 
-	enryptedJSON, err := encrypt.Encrypt(v.encodingKey, sb.String())
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			return
+		}
+	}(file)
+
+	w, err := cipher.EncryptWriter(v.encodingKey, file)
 	if err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(v.filepath, os.O_RDWR | os.O_CREATE, 0755)
-	if err != nil {
-		return err
-	}
+	return v.writeKeyValues(w)
+}
 
-	defer file.Close()
-
-	_, err = fmt.Fprint(file, enryptedJSON)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (v *Vault) writeKeyValues(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	return enc.Encode(v.keyValues)
 }
 
 func (v *Vault) Get(key string) (string, error) {
 	v.mutex.Lock()
 	defer v.mutex.Unlock()
-	
-	err := v.loadKeyValues()
+
+	err := v.load()
 
 	if err != nil {
 		return "", err
@@ -110,13 +99,13 @@ func (v *Vault) Set(key, value string) error {
 	v.mutex.Lock()
 	defer v.mutex.Unlock()
 
-	err := v.loadKeyValues()
+	err := v.load()
 	if err != nil {
 		return err
 	}
 
 	v.keyValues[key] = value
-	err = v.saveKeyValues()
+	err = v.save()
 	if err != nil {
 		return err
 	}
