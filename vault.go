@@ -112,3 +112,17 @@ func (v *Vault) Set(key, value string) error {
 
 	return nil
 }
+
+func (v *Vault) List() ([]string, error) {
+	err := v.load()
+	if err != nil {
+		return nil, err
+	}
+
+	keys := make([]string, 0, len(v.keyValues))
+	for k := range v.keyValues {
+		keys = append(keys, k)
+	}
+
+	return keys, nil
+}
