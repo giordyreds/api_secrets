@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all keys in your secret storage",
+var rmCmd = &cobra.Command{
+	Use:   "rm",
+	Short: "Remove a key in your secret storage",
 	Run: func(cmd *cobra.Command, args []string) {
 		encodingKey, err := getEncodingKey()
 		if err != nil {
@@ -18,19 +18,21 @@ var listCmd = &cobra.Command{
 
 		v := apisecrets.File(encodingKey, secretsPath())
 
-		keysList, err := v.List()
+		key, err := readVisibleKey()
 		if err != nil {
-			fmt.Println("Missing encoding key.")
+			fmt.Println("error reading key: ", err)
 			return
 		}
 
-		fmt.Println("\nkeys list:")
-		for _, k := range keysList {
-			fmt.Printf("%s\n", k)
+		err = v.Remove(key)
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
+		fmt.Printf("%s has been removed from secrets.\n", key)
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(listCmd)
+	RootCmd.AddCommand(rmCmd)
 }

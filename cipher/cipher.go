@@ -97,7 +97,7 @@ func Decrypt(key string, cipherHex string) (string, error) {
 	return fmt.Sprintf("%s", ciphertext), nil
 }
 
-// DecryptReader will return a reader that will dectypt data from the provided reader and return data
+// DecryptReader will return a reader that will decrypt data from the provided reader and return data
 // as plain (not encrypted)
 func DecryptReader(key string, r io.Reader) (*cipher.StreamReader, error) {
 	iv := make([]byte, aes.BlockSize)

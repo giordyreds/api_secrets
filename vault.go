@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"example/apisecrets/cipher"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -114,6 +115,9 @@ func (v *Vault) Set(key, value string) error {
 }
 
 func (v *Vault) List() ([]string, error) {
+	v.mutex.Lock()
+	defer v.mutex.Unlock()
+
 	err := v.load()
 	if err != nil {
 		return nil, err
@@ -125,4 +129,29 @@ func (v *Vault) List() ([]string, error) {
 	}
 
 	return keys, nil
+}
+
+func (v *Vault) Remove(key string) error {
+	v.mutex.Lock()
+	defer v.mutex.Unlock()
+
+	err := v.load()
+	if err != nil {
+		return err
+	}
+
+	_, ok := v.keyValues[key]
+
+	if !ok {
+		return fmt.Errorf("key not found")
+	}
+
+	delete(v.keyValues, key)
+
+	err = v.save()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
